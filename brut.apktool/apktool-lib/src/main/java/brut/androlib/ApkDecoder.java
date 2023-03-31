@@ -26,11 +26,14 @@ import brut.androlib.meta.VersionInfo;
 import brut.androlib.res.AndrolibResources;
 import brut.androlib.res.data.ResPackage;
 import brut.androlib.res.data.ResTable;
+import brut.androlib.tinypace.AppInfo;
+import brut.androlib.tinypace.Global;
 import brut.directory.ExtFile;
 import brut.androlib.res.xml.ResXmlPatcher;
 import brut.common.BrutException;
 import brut.directory.DirectoryException;
 import brut.util.OS;
+
 import com.google.common.base.Strings;
 
 import java.io.File;
@@ -60,7 +63,8 @@ public class ApkDecoder {
         if (mApkFile != null) {
             try {
                 mApkFile.close();
-            } catch (IOException ignored) {}
+            } catch (IOException ignored) {
+            }
         }
 
         mApkFile = new ExtFile(apkFile);
@@ -116,10 +120,9 @@ public class ApkDecoder {
                 // up attribute references
                 if (hasManifest()) {
                     if (mDecodeResources == DECODE_RESOURCES_FULL
-                            || mForceDecodeManifest == FORCE_DECODE_MANIFEST_FULL) {
+                        || mForceDecodeManifest == FORCE_DECODE_MANIFEST_FULL) {
                         mAndrolib.decodeManifestFull(mApkFile, outDir, getResTable());
-                    }
-                    else {
+                    } else {
                         mAndrolib.decodeManifestRaw(mApkFile, outDir);
                     }
                 }
@@ -142,8 +145,8 @@ public class ApkDecoder {
                 Set<String> files = mApkFile.getDirectory().getFiles(true);
                 for (String file : files) {
                     if (file.endsWith(".dex")) {
-                        if (! file.equalsIgnoreCase("classes.dex")) {
-                            switch(mDecodeSources) {
+                        if (!file.equalsIgnoreCase("classes.dex")) {
+                            switch (mDecodeSources) {
                                 case DECODE_SOURCES_NONE:
                                     mAndrolib.decodeSourcesRaw(mApkFile, outDir, file);
                                     break;
@@ -172,7 +175,48 @@ public class ApkDecoder {
         } finally {
             try {
                 mApkFile.close();
-            } catch (IOException ignored) {}
+            } catch (IOException ignored) {
+            }
+        }
+    }
+
+    /**
+     * 解析arsc文件
+     */
+    public void decodeArsc() throws AndrolibException, IOException, DirectoryException {
+        try {
+            File outDir = getOutDir();
+            AndrolibResources.sKeepBroken = mKeepBrokenResources;
+
+            if (!mForceDelete && outDir.exists()) {
+                throw new OutDirExistsException();
+            }
+
+            if (!mApkFile.isFile() || !mApkFile.canRead()) {
+                throw new InFileNotFoundException();
+            }
+
+            try {
+                OS.rmdir(outDir);
+            } catch (BrutException ex) {
+                throw new AndrolibException(ex);
+            }
+            outDir.mkdirs();
+
+            AppInfo appInfo = new AppInfo();
+
+            mAndrolib.decodeManifestWithApplication(mApkFile, outDir, getResTable(), appInfo);
+            mAndrolib.decodeArsc(mApkFile, outDir, getResTable());
+
+            String name = ResXmlPatcher.getValueFromStrings(outDir, Global.APP_NAME);
+            appInfo.setAppName(name);
+
+            System.out.println(appInfo.toJsonString());
+        } finally {
+            try {
+                mApkFile.close();
+            } catch (IOException ignored) {
+            }
         }
     }
 
@@ -244,9 +288,9 @@ public class ApkDecoder {
         if (mResTable == null) {
             boolean hasResources = hasResources();
             boolean hasManifest = hasManifest();
-            if (! (hasManifest || hasResources)) {
+            if (!(hasManifest || hasResources)) {
                 throw new AndrolibException(
-                        "Apk doesn't contain either AndroidManifest.xml file or resources.arsc file");
+                    "Apk doesn't contain either AndroidManifest.xml file or resources.arsc file");
             }
             mResTable = mAndrolib.getResTable(mApkFile, hasResources);
             mResTable.setAnalysisMode(mAnalysisMode);
@@ -267,7 +311,7 @@ public class ApkDecoder {
             Set<String> files = mApkFile.getDirectory().getFiles(false);
             for (String file : files) {
                 if (file.endsWith(".dex")) {
-                    if (! file.equalsIgnoreCase("classes.dex")) {
+                    if (!file.equalsIgnoreCase("classes.dex")) {
                         return true;
                     }
                 }
@@ -406,7 +450,8 @@ public class ApkDecoder {
         int id = mResTable.getPackageId();
         try {
             id = mResTable.getPackage(renamed).getId();
-        } catch (UndefinedResObjectException ignored) {}
+        } catch (UndefinedResObjectException ignored) {
+        }
 
         if (Strings.isNullOrEmpty(original)) {
             return;

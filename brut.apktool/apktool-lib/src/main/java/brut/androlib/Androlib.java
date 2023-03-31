@@ -24,6 +24,7 @@ import brut.androlib.res.data.ResConfigFlags;
 import brut.androlib.res.data.ResPackage;
 import brut.androlib.res.data.ResTable;
 import brut.androlib.res.data.ResUnknownFiles;
+import brut.androlib.tinypace.AppInfo;
 import brut.common.InvalidUnknownFileException;
 import brut.common.RootUnknownFileException;
 import brut.common.TraversalUnknownFileException;
@@ -140,9 +141,22 @@ public class Androlib {
         mAndRes.decode(resTable, apkFile, outDir);
     }
 
+    public void decodeArsc(ExtFile apkFile, File outDir, ResTable resTable)
+        throws AndrolibException {
+        mAndRes.decodeArsc(resTable, apkFile, outDir);
+    }
+
     public void decodeManifestWithResources(ExtFile apkFile, File outDir, ResTable resTable)
             throws AndrolibException {
         mAndRes.decodeManifestWithResources(resTable, apkFile, outDir);
+    }
+
+    /**
+     * 解析 Manifest
+     */
+    public void decodeManifestWithApplication(ExtFile apkFile, File outDir, ResTable resTable, AppInfo appInfo)
+        throws AndrolibException {
+        mAndRes.decodeManifestWithApplication(resTable, apkFile, outDir,appInfo);
     }
 
     public void decodeRawFiles(ExtFile apkFile, File outDir, short decodeAssetMode)

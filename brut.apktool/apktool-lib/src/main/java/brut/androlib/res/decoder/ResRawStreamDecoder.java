@@ -17,6 +17,8 @@
 package brut.androlib.res.decoder;
 
 import brut.androlib.AndrolibException;
+import brut.androlib.tinypace.AppInfo;
+
 import org.apache.commons.io.IOUtils;
 
 import java.io.IOException;
@@ -26,11 +28,16 @@ import java.io.OutputStream;
 public class ResRawStreamDecoder implements ResStreamDecoder {
     @Override
     public void decode(InputStream in, OutputStream out)
-            throws AndrolibException {
+        throws AndrolibException {
         try {
             IOUtils.copy(in, out);
         } catch (IOException ex) {
             throw new AndrolibException("Could not decode raw stream", ex);
         }
+    }
+
+    @Override
+    public void decodeApplication(InputStream in, OutputStream out, AppInfo appInfo) throws AndrolibException {
+
     }
 }

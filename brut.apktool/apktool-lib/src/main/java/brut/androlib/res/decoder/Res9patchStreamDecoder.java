@@ -18,6 +18,7 @@ package brut.androlib.res.decoder;
 
 import brut.androlib.AndrolibException;
 import brut.androlib.err.CantFind9PatchChunkException;
+import brut.androlib.tinypace.AppInfo;
 import brut.util.ExtDataInput;
 import org.apache.commons.io.IOUtils;
 
@@ -120,6 +121,11 @@ public class Res9patchStreamDecoder implements ResStreamDecoder {
             // This could be more verbose and try to MIME ?
             throw new AndrolibException(ex);
         }
+    }
+
+    @Override
+    public void decodeApplication(InputStream in, OutputStream out, AppInfo appInfo) throws AndrolibException {
+
     }
 
     private NinePatch getNinePatch(byte[] data) throws AndrolibException,

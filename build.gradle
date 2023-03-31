@@ -76,8 +76,8 @@ allprojects {
 
     // license plugin automatically fires these tasks, disable them and run them during releases
     gradle.startParameter.excludedTaskNames += [
-            "licenseMain",
-            "licenseTest"
+        "licenseMain",
+        "licenseTest"
     ]
 
     repositories {
@@ -97,6 +97,11 @@ allprojects {
 tasks.withType(JavaCompile).configureEach {
     options.encoding = StandardCharsets.UTF_8.toString()
     options.compilerArgs += ["-Xlint:-options"]
+}
+
+//指定编译的编码
+tasks.withType(JavaCompile) {
+    options.encoding = "UTF-8"
 }
 
 def mavenVersion = 'unspecified'
@@ -130,9 +135,9 @@ build.doFirst {
     // fail the build if java (1.5/1.6/1.7)
     if (javaVersion.startsWith("1.5") || javaVersion.startsWith("1.6") || javaVersion.startsWith("1.7")) {
         throw new GradleException("You can fix this problem!\n" +
-                "We found a " + javaVersion + " JDK\n" +
-                "Please update JAVA_HOME to use at least a 1.8 JDK\n" +
-                "Currently it is set to: " + System.getProperty("java.home")
+            "We found a " + javaVersion + " JDK\n" +
+            "Please update JAVA_HOME to use at least a 1.8 JDK\n" +
+            "Currently it is set to: " + System.getProperty("java.home")
         )
     }
 }

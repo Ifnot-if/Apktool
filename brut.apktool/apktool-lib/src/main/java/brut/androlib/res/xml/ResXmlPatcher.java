@@ -17,6 +17,7 @@
 package brut.androlib.res.xml;
 
 import brut.androlib.AndrolibException;
+
 import org.w3c.dom.*;
 import org.xml.sax.SAXException;
 
@@ -29,6 +30,7 @@ import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 import javax.xml.xpath.*;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -59,7 +61,8 @@ public final class ResXmlPatcher {
 
                 saveDocument(file, doc);
 
-            } catch (SAXException | ParserConfigurationException | IOException | TransformerException ignored) {
+            } catch (SAXException | ParserConfigurationException | IOException |
+                     TransformerException ignored) {
             }
         }
     }
@@ -89,7 +92,8 @@ public final class ResXmlPatcher {
 
                 saveDocument(file, doc);
 
-            } catch (SAXException | ParserConfigurationException | IOException | TransformerException ignored) {
+            } catch (SAXException | ParserConfigurationException | IOException |
+                     TransformerException ignored) {
             }
         }
     }
@@ -120,7 +124,8 @@ public final class ResXmlPatcher {
 
                 saveDocument(file, doc);
 
-            } catch (SAXException | ParserConfigurationException | IOException | TransformerException ignored) {
+            } catch (SAXException | ParserConfigurationException | IOException |
+                     TransformerException ignored) {
             }
         }
     }
@@ -129,9 +134,9 @@ public final class ResXmlPatcher {
      * Creates a modified network security config file that is more permissive
      *
      * @param file network security config file
-     * @throws TransformerException XML file could not be edited
-     * @throws IOException XML file could not be located
-     * @throws SAXException XML file could not be read
+     * @throws TransformerException         XML file could not be edited
+     * @throws IOException                  XML file could not be located
+     * @throws SAXException                 XML file could not be read
      * @throws ParserConfigurationException XML nodes could be written
      */
     public static void modNetworkSecurityConfig(File file)
@@ -168,7 +173,7 @@ public final class ResXmlPatcher {
      * build, thus preventing the application from installing. This is from a bug/error
      * in AOSP where public resources cannot be part of an authorities attribute within
      * a provider tag.
-     *
+     * <p>
      * This finds any reference and replaces it with the literal value found in the
      * res/values/strings.xml file.
      *
@@ -216,8 +221,8 @@ public final class ResXmlPatcher {
                     saveDocument(file, doc);
                 }
 
-            }  catch (SAXException | ParserConfigurationException | IOException |
-                    XPathExpressionException | TransformerException ignored) {
+            } catch (SAXException | ParserConfigurationException | IOException |
+                     XPathExpressionException | TransformerException ignored) {
             }
         }
     }
@@ -225,8 +230,8 @@ public final class ResXmlPatcher {
     /**
      * Checks if the replacement was properly made to a node.
      *
-     * @param file File we are searching for value
-     * @param saved boolean on whether we need to save
+     * @param file     File we are searching for value
+     * @param saved    boolean on whether we need to save
      * @param provider Node we are attempting to replace
      * @return boolean
      */
@@ -245,11 +250,11 @@ public final class ResXmlPatcher {
      * Finds key in strings.xml file and returns text value
      *
      * @param directory Root directory of apk
-     * @param key String reference (ie @string/foo)
+     * @param key       String reference (ie @string/foo)
      * @return String|null
      */
     public static String pullValueFromStrings(File directory, String key) {
-        if (key == null || ! key.contains("@")) {
+        if (key == null || !key.contains("@")) {
             return null;
         }
 
@@ -268,7 +273,63 @@ public final class ResXmlPatcher {
                     return (String) result;
                 }
 
-            }  catch (SAXException | ParserConfigurationException | IOException | XPathExpressionException ignored) {
+            } catch (SAXException | ParserConfigurationException | IOException |
+                     XPathExpressionException ignored) {
+            }
+        }
+
+        return null;
+    }
+
+    public static String getValueFromDrawables(File directory, String key) {
+        File file = new File(directory, "/res/values/drawables.xml");
+
+        key = key.replace("@item/", "");
+
+        if (file.exists()) {
+            try {
+                Document doc = loadDocument(file);
+                XPath xPath = XPathFactory.newInstance().newXPath();
+                XPathExpression expression = xPath.compile("/resources/item[@name=" + '"' + key + "\"]/text()");
+
+                Object result = expression.evaluate(doc, XPathConstants.STRING);
+
+                if (result != null) {
+                    return (String) result;
+                }
+            } catch (SAXException | ParserConfigurationException | IOException |
+                     XPathExpressionException ignored) {
+            }
+        }
+        return null;
+    }
+
+    public static String getValueFromStrings(File directory, String key) {
+        if (key == null || !key.contains("@")) {
+            return null;
+        }
+
+        File file = new File(directory, "/res/values/strings.xml");
+
+        key = key.replace("@string/", "");
+
+        if (file.exists()) {
+            try {
+                Document doc = loadDocument(file);
+                XPath xPath = XPathFactory.newInstance().newXPath();
+                XPathExpression expression = xPath.compile("/resources/string[@name=" + '"' + key + "\"]/text()");
+
+                Object result = expression.evaluate(doc, XPathConstants.STRING);
+
+                if (result != null) {
+                    String name = (String) result;
+                    if (name.startsWith("@string")) {
+                        name = getValueFromStrings(directory, name);
+                    }
+                    return name;
+                }
+
+            } catch (SAXException | ParserConfigurationException | IOException | XPathExpressionException ignored) {
             }
         }
 
@@ -279,11 +340,11 @@ public final class ResXmlPatcher {
      * Finds key in integers.xml file and returns text value
      *
      * @param directory Root directory of apk
-     * @param key Integer reference (ie @integer/foo)
+     * @param key       Integer reference (ie @integer/foo)
      * @return String|null
      */
     public static String pullValueFromIntegers(File directory, String key) {
-        if (key == null || ! key.contains("@")) {
+        if (key == null || !key.contains("@")) {
             return null;
         }
 
@@ -302,7 +363,8 @@ public final class ResXmlPatcher {
                     return (String) result;
                 }
 
-            }  catch (SAXException | ParserConfigurationException | IOException | XPathExpressionException ignored) {
+            } catch (SAXException | ParserConfigurationException | IOException |
+                     XPathExpressionException ignored) {
             }
         }
 
@@ -331,7 +393,8 @@ public final class ResXmlPatcher {
                 }
                 saveDocument(file, doc);
 
-            } catch (SAXException | ParserConfigurationException | IOException | TransformerException ignored) {
+            } catch (SAXException | ParserConfigurationException | IOException |
+                     TransformerException ignored) {
             }
         }
     }
@@ -339,7 +402,7 @@ public final class ResXmlPatcher {
     /**
      * Replaces package value with passed packageOriginal string
      *
-     * @param file File for AndroidManifest.xml
+     * @param file            File for AndroidManifest.xml
      * @param packageOriginal Package name to replace
      */
     public static void renameManifestPackage(File file, String packageOriginal) {
@@ -355,12 +418,12 @@ public final class ResXmlPatcher {
             nodeAttr.setNodeValue(packageOriginal);
             saveDocument(file, doc);
 
-        } catch (SAXException | ParserConfigurationException | IOException | TransformerException ignored) {
+        } catch (SAXException | ParserConfigurationException | IOException |
+                 TransformerException ignored) {
         }
     }
 
     /**
-     *
      * @param file File to load into Document
      * @return Document
      * @throws IOException
@@ -368,7 +431,7 @@ public final class ResXmlPatcher {
      * @throws ParserConfigurationException
      */
     private static Document loadDocument(File file)
-            throws IOException, SAXException, ParserConfigurationException {
+        throws IOException, SAXException, ParserConfigurationException {
 
         DocumentBuilderFactory docFactory = DocumentBuilderFactory.newInstance();
         docFactory.setFeature(FEATURE_DISABLE_DOCTYPE_DECL, true);
@@ -390,16 +453,15 @@ public final class ResXmlPatcher {
     }
 
     /**
-     *
      * @param file File to save Document to (ie AndroidManifest.xml)
-     * @param doc Document being saved
+     * @param doc  Document being saved
      * @throws IOException
      * @throws SAXException
      * @throws ParserConfigurationException
      * @throws TransformerException
      */
     private static void saveDocument(File file, Document doc)
-            throws IOException, SAXException, ParserConfigurationException, TransformerException {
+        throws IOException, SAXException, ParserConfigurationException, TransformerException {
 
         TransformerFactory transformerFactory = TransformerFactory.newInstance();
         Transformer transformer = transformerFactory.newTransformer();

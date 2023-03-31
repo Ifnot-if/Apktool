@@ -25,6 +25,7 @@ import brut.common.BrutException;
 import brut.directory.DirectoryException;
 import brut.util.AaptManager;
 import brut.util.OSDetection;
+
 import org.apache.commons.cli.*;
 
 import java.io.File;
@@ -50,7 +51,7 @@ public class Main {
         try {
             commandLine = parser.parse(allOptions, args, false);
 
-            if (! OSDetection.is64Bit()) {
+            if (!OSDetection.is64Bit()) {
                 System.err.println("32 bit support is deprecated. Apktool will not support 32bit on v3.0.0.");
             }
         } catch (ParseException ex) {
@@ -113,6 +114,8 @@ public class Main {
         int paraCount = cli.getArgList().size();
         String apkName = cli.getArgList().get(paraCount - 1);
         File outDir;
+        // 判断是否只解析arsc
+        boolean flag = cli.hasOption("arsc");
 
         // check for options
         if (cli.hasOption("s") || cli.hasOption("no-src")) {
@@ -160,8 +163,7 @@ public class Main {
         } else {
             // make out folder manually using name of apk
             String outName = apkName;
-            outName = outName.endsWith(".apk") ? outName.substring(0,
-                    outName.length() - 4).trim() : outName + ".out";
+            outName = outName.endsWith(".apk") ? outName.substring(0, outName.length() - 4).trim() : outName + ".out";
 
             // make file from path
             outName = new File(outName).getName();
@@ -172,23 +174,19 @@ public class Main {
         decoder.setApkFile(new File(apkName));
 
         try {
-            decoder.decode();
+            if (flag) {
+                decoder.decodeArsc();
+            } else {
+                decoder.decode();
+            }
         } catch (OutDirExistsException ex) {
-            System.err
-                    .println("Destination directory ("
-                            + outDir.getAbsolutePath()
-                            + ") "
-                            + "already exists. Use -f switch if you want to overwrite it.");
+            System.err.println("Destination directory (" + outDir.getAbsolutePath() + ") " + "already exists. Use -f switch if you want to overwrite it.");
             System.exit(1);
         } catch (InFileNotFoundException ex) {
             System.err.println("Input file (" + apkName + ") " + "was not found or was not readable.");
             System.exit(1);
         } catch (CantFindFrameworkResException ex) {
-            System.err
-                    .println("Can't find framework resources for package of id: "
-                            + ex.getPkgId()
-                            + ". You must install proper "
-                            + "framework files, see project website for more info.");
+            System.err.println("Can't find framework resources for package of id: " + ex.getPkgId() + ". You must install proper " + "framework files, see project website for more info.");
             System.exit(1);
         } catch (IOException ex) {
             System.err.println("Could not modify file. Please ensure you have permission.");
@@ -199,7 +197,8 @@ public class Main {
         } finally {
             try {
                 decoder.close();
-            } catch (IOException ignored) {}
+            } catch (IOException ignored) {
+            }
         }
     }
 
@@ -315,164 +314,63 @@ public class Main {
     }
 
     private static void _Options() {
-
+        Option onlyArscOption = Option.builder().longOpt("arsc").desc("Only arsc").build();
         // create options
-        Option versionOption = Option.builder("version")
-                .longOpt("version")
-                .desc("prints the version then exits")
-                .build();
+        Option versionOption = Option.builder("version").longOpt("version").desc("prints the version then exits").build();
 
-        Option advanceOption = Option.builder("advance")
-                .longOpt("advanced")
-                .desc("prints advance information.")
-                .build();
+        Option advanceOption = Option.builder("advance").longOpt("advanced").desc("prints advance information.").build();
 
-        Option noSrcOption = Option.builder("s")
-                .longOpt("no-src")
-                .desc("Do not decode sources.")
-                .build();
+        Option noSrcOption = Option.builder("s").longOpt("no-src").desc("Do not decode sources.").build();
 
-        Option onlyMainClassesOption = Option.builder()
-                .longOpt("only-main-classes")
-                .desc("Only disassemble the main dex classes (classes[0-9]*.dex) in the root.")
-                .build();
+        Option onlyMainClassesOption = Option.builder().longOpt("only-main-classes").desc("Only disassemble the main dex classes (classes[0-9]*.dex) in the root.").build();
 
-        Option noResOption = Option.builder("r")
-                .longOpt("no-res")
-                .desc("Do not decode resources.")
-                .build();
+        Option noResOption = Option.builder("r").longOpt("no-res").desc("Do not decode resources.").build();
 
-        Option forceManOption = Option.builder()
-                .longOpt("force-manifest")
-                .desc("Decode the APK's compiled manifest, even if decoding of resources is set to \"false\".")
-                .build();
+        Option forceManOption = Option.builder().longOpt("force-manifest").desc("Decode the APK's compiled manifest, even if decoding of resources is set to \"false\".").build();
 
-        Option noAssetOption = Option.builder()
-                .longOpt("no-assets")
-                .desc("Do not decode assets.")
-                .build();
+        Option noAssetOption = Option.builder().longOpt("no-assets").desc("Do not decode assets.").build();
 
-        Option debugDecOption = Option.builder("d")
-                .longOpt("debug")
-                .desc("REMOVED (DOES NOT WORK): Decode in debug mode.")
-                .build();
+        Option debugDecOption = Option.builder("d").longOpt("debug").desc("REMOVED (DOES NOT WORK): Decode in debug mode.").build();
 
-        Option analysisOption = Option.builder("m")
-                .longOpt("match-original")
-                .desc("Keeps files to closest to original as possible. Prevents rebuild.")
-                .build();
+        Option analysisOption = Option.builder("m").longOpt("match-original").desc("Keeps files to closest to original as possible. Prevents rebuild.").build();
 
-        Option apiLevelOption = Option.builder("api")
-                .longOpt("api-level")
-                .desc("The numeric api-level of the file to generate, e.g. 14 for ICS.")
-                .hasArg(true)
-                .argName("API")
-                .build();
+        Option apiLevelOption = Option.builder("api").longOpt("api-level").desc("The numeric api-level of the file to generate, e.g. 14 for ICS.").hasArg(true).argName("API").build();
 
-        Option debugBuiOption = Option.builder("d")
-                .longOpt("debug")
-                .desc("Sets android:debuggable to \"true\" in the APK's compiled manifest")
-                .build();
+        Option debugBuiOption = Option.builder("d").longOpt("debug").desc("Sets android:debuggable to \"true\" in the APK's compiled manifest").build();
 
-        Option netSecConfOption = Option.builder("n")
-            .longOpt("net-sec-conf")
-            .desc("Adds a generic Network Security Configuration file in the output APK")
-            .build();
+        Option netSecConfOption = Option.builder("n").longOpt("net-sec-conf").desc("Adds a generic Network Security Configuration file in the output APK").build();
 
-        Option noDbgOption = Option.builder("b")
-                .longOpt("no-debug-info")
-                .desc("don't write out debug info (.local, .param, .line, etc.)")
-                .build();
+        Option noDbgOption = Option.builder("b").longOpt("no-debug-info").desc("don't write out debug info (.local, .param, .line, etc.)").build();
 
-        Option forceDecOption = Option.builder("f")
-                .longOpt("force")
-                .desc("Force delete destination directory.")
-                .build();
+        Option forceDecOption = Option.builder("f").longOpt("force").desc("Force delete destination directory.").build();
 
-        Option frameTagOption = Option.builder("t")
-                .longOpt("frame-tag")
-                .desc("Uses framework files tagged by <tag>.")
-                .hasArg(true)
-                .argName("tag")
-                .build();
+        Option frameTagOption = Option.builder("t").longOpt("frame-tag").desc("Uses framework files tagged by <tag>.").hasArg(true).argName("tag").build();
 
-        Option frameDirOption = Option.builder("p")
-                .longOpt("frame-path")
-                .desc("Uses framework files located in <dir>.")
-                .hasArg(true)
-                .argName("dir")
-                .build();
+        Option frameDirOption = Option.builder("p").longOpt("frame-path").desc("Uses framework files located in <dir>.").hasArg(true).argName("dir").build();
 
-        Option frameIfDirOption = Option.builder("p")
-                .longOpt("frame-path")
-                .desc("Stores framework files into <dir>.")
-                .hasArg(true)
-                .argName("dir")
-                .build();
+        Option frameIfDirOption = Option.builder("p").longOpt("frame-path").desc("Stores framework files into <dir>.").hasArg(true).argName("dir").build();
 
-        Option keepResOption = Option.builder("k")
-                .longOpt("keep-broken-res")
-                .desc("Use if there was an error and some resources were dropped, e.g.\n"
-                        + "            \"Invalid config flags detected. Dropping resources\", but you\n"
-                        + "            want to decode them anyway, even with errors. You will have to\n"
-                        + "            fix them manually before building.")
-                .build();
+        Option keepResOption = Option.builder("k").longOpt("keep-broken-res").desc("Use if there was an error and some resources were dropped, e.g.\n" + "            \"Invalid config flags detected. Dropping resources\", but you\n" + "            want to decode them anyway, even with errors. You will have to\n" + "            fix them manually before building.").build();
 
-        Option forceBuiOption = Option.builder("f")
-                .longOpt("force-all")
-                .desc("Skip changes detection and build all files.")
-                .build();
+        Option forceBuiOption = Option.builder("f").longOpt("force-all").desc("Skip changes detection and build all files.").build();
 
-        Option aaptOption = Option.builder("a")
-                .longOpt("aapt")
-                .hasArg(true)
-                .argName("loc")
-                .desc("Loads aapt from specified location.")
-                .build();
+        Option aaptOption = Option.builder("a").longOpt("aapt").hasArg(true).argName("loc").desc("Loads aapt from specified location.").build();
 
-        Option aapt2Option = Option.builder()
-                .longOpt("use-aapt2")
-                .desc("Upgrades apktool to use experimental aapt2 binary.")
-                .build();
+        Option aapt2Option = Option.builder().longOpt("use-aapt2").desc("Upgrades apktool to use experimental aapt2 binary.").build();
 
-        Option originalOption = Option.builder("c")
-                .longOpt("copy-original")
-                .desc("Copies original AndroidManifest.xml and META-INF. See project page for more info.")
-                .build();
+        Option originalOption = Option.builder("c").longOpt("copy-original").desc("Copies original AndroidManifest.xml and META-INF. See project page for more info.").build();
 
-        Option noCrunchOption = Option.builder("nc")
-                .longOpt("no-crunch")
-                .desc("Disable crunching of resource files during the build step.")
-                .build();
+        Option noCrunchOption = Option.builder("nc").longOpt("no-crunch").desc("Disable crunching of resource files during the build step.").build();
 
-        Option tagOption = Option.builder("t")
-                .longOpt("tag")
-                .desc("Tag frameworks using <tag>.")
-                .hasArg(true)
-                .argName("tag")
-                .build();
+        Option tagOption = Option.builder("t").longOpt("tag").desc("Tag frameworks using <tag>.").hasArg(true).argName("tag").build();
 
-        Option outputBuiOption = Option.builder("o")
-                .longOpt("output")
-                .desc("The name of apk that gets written. Default is dist/name.apk")
-                .hasArg(true)
-                .argName("dir")
-                .build();
+        Option outputBuiOption = Option.builder("o").longOpt("output").desc("The name of apk that gets written. Default is dist/name.apk").hasArg(true).argName("dir").build();
 
-        Option outputDecOption = Option.builder("o")
-                .longOpt("output")
-                .desc("The name of folder that gets written. Default is apk.out")
-                .hasArg(true)
-                .argName("dir")
-                .build();
+        Option outputDecOption = Option.builder("o").longOpt("output").desc("The name of folder that gets written. Default is apk.out").hasArg(true).argName("dir").build();
 
-        Option quietOption = Option.builder("q")
-                .longOpt("quiet")
-                .build();
+        Option quietOption = Option.builder("q").longOpt("quiet").build();
 
-        Option verboseOption = Option.builder("v")
-                .longOpt("verbose")
-                .build();
+        Option verboseOption = Option.builder("v").longOpt("verbose").build();
 
         // check for advance mode
         if (isAdvanceMode()) {
@@ -492,7 +390,7 @@ public class Main {
             buildOptions.addOption(aapt2Option);
             buildOptions.addOption(noCrunchOption);
         }
-
+        normalOptions.addOption(onlyArscOption);
         // add global options
         normalOptions.addOption(versionOption);
         normalOptions.addOption(advanceOption);
@@ -566,15 +464,10 @@ public class Main {
         formatter.setWidth(120);
 
         // print out license info prior to formatter.
-        System.out.println(
-                "Apktool v" + Androlib.getVersion() + " - a tool for reengineering Android apk files\n" +
-                        "with smali v" + ApktoolProperties.get("smaliVersion") +
-                        " and baksmali v" + ApktoolProperties.get("baksmaliVersion") + "\n" +
-                        "Copyright 2010 Ryszard Wiśniewski <brut.alll@gmail.com>\n" +
-                        "Copyright 2010 Connor Tumbleson <connor.tumbleson@gmail.com>" );
+        System.out.println("Apktool v" + Androlib.getVersion() + " - a tool for reengineering Android apk files\n" + "with smali v" + ApktoolProperties.get("smaliVersion") + " and baksmali v" + ApktoolProperties.get("baksmaliVersion") + "\n" + "Copyright 2010 Ryszard Wiśniewski <brut.alll@gmail.com>\n" + "Copyright 2010 Connor Tumbleson <connor.tumbleson@gmail.com>");
         if (isAdvanceMode()) {
             System.out.println("Apache License 2.0 (https://www.apache.org/licenses/LICENSE-2.0)\n");
-        }else {
+        } else {
             System.out.println();
         }
 
@@ -591,9 +484,7 @@ public class Main {
         System.out.println();
 
         // print out more information
-        System.out.println(
-                "For additional info, see: https://ibotpeaches.github.io/Apktool/ \n"
-                        + "For smali/baksmali info, see: https://github.com/JesusFreke/smali");
+        System.out.println("For additional info, see: https://ibotpeaches.github.io/Apktool/ \n" + "For smali/baksmali info, see: https://github.com/JesusFreke/smali");
     }
 
     private static void setupLogging(final Verbosity verbosity) {
@@ -607,7 +498,7 @@ public class Main {
             return;
         }
 
-        Handler handler = new Handler(){
+        Handler handler = new Handler() {
             @Override
             public void publish(LogRecord record) {
                 if (getFormatter() == null) {
@@ -631,10 +522,14 @@ public class Main {
                     reportError(null, exception, ErrorManager.FORMAT_FAILURE);
                 }
             }
+
             @Override
-            public void close() throws SecurityException {}
+            public void close() throws SecurityException {
+            }
+
             @Override
-            public void flush(){}
+            public void flush() {
+            }
         };
 
         logger.addHandler(handler);
@@ -646,9 +541,7 @@ public class Main {
             handler.setFormatter(new Formatter() {
                 @Override
                 public String format(LogRecord record) {
-                    return record.getLevel().toString().charAt(0) + ": "
-                            + record.getMessage()
-                            + System.getProperty("line.separator");
+                    return record.getLevel().toString().charAt(0) + ": " + record.getMessage() + System.getProperty("line.separator");
                 }
             });
         }

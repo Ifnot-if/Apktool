@@ -22,6 +22,8 @@ import brut.androlib.err.RawXmlEncounteredException;
 import brut.androlib.res.data.ResResource;
 import brut.androlib.res.data.value.ResBoolValue;
 import brut.androlib.res.data.value.ResFileValue;
+import brut.androlib.tinypace.AppInfo;
+import brut.androlib.tinypace.Global;
 import brut.directory.DirUtil;
 import brut.directory.Directory;
 import brut.directory.DirectoryException;
@@ -38,8 +40,7 @@ public class ResFileDecoder {
         this.mDecoders = decoders;
     }
 
-    public void decode(ResResource res, Directory inDir, Directory outDir, Map<String, String> resFileMapping)
-            throws AndrolibException {
+    public void decode(ResResource res, Directory inDir, Directory outDir, Map<String, String> resFileMapping) throws AndrolibException {
 
         ResFileValue fileValue = (ResFileValue) res.getValue();
         String inFilePath = fileValue.toString();
@@ -98,9 +99,7 @@ public class ResFileDecoder {
                         decode(inDir, inFilePath, outDir, outFileName, "9patch");
                         return;
                     } catch (CantFind9PatchChunkException ex) {
-                        LOGGER.log(Level.WARNING, String.format(
-                            "Cant find 9patch chunk in file: \"%s\". Renaming it to *.png.", inFileName
-                        ), ex);
+                        LOGGER.log(Level.WARNING, String.format("Cant find 9patch chunk in file: \"%s\". Renaming it to *.png.", inFileName), ex);
                         outDir.removeFile(outFileName);
                         outFileName = outResName + ext;
                     }
@@ -127,27 +126,89 @@ public class ResFileDecoder {
             // XSD files are AXML`d on aapt1, but left in plaintext in aapt2.
             decode(inDir, inFilePath, outDir, outFileName, "raw");
         } catch (AndrolibException ex) {
-            LOGGER.log(Level.SEVERE, String.format(
-                "Could not decode file, replacing by FALSE value: %s",
-            inFileName), ex);
+            LOGGER.log(Level.SEVERE, String.format("Could not decode file, replacing by FALSE value: %s", inFileName), ex);
             res.replace(new ResBoolValue(false, 0, null));
         }
     }
 
-    public void decode(Directory inDir, String inFileName, Directory outDir,
-                       String outFileName, String decoder) throws AndrolibException {
-        try (
-                InputStream in = inDir.getFileInput(inFileName);
-                OutputStream out = outDir.getFileOutput(outFileName)
-        ) {
+    public void decodeArsc(ResResource res, Directory inDir, Directory outDir, Map<String, String> resFileMapping) throws AndrolibException {
+
+        ResFileValue fileValue = (ResFileValue) res.getValue();
+        String inFilePath = fileValue.toString();
+        String inFileName = fileValue.getStrippedPath();
+
+
+        String outResName = res.getFilePath();
+        String typeName = res.getResSpec().getType().getName();
+
+        String ext = null;
+        String outFileName;
+        int extPos = inFileName.lastIndexOf(".");
+        if (extPos == -1) {
+            outFileName = outResName;
+        } else {
+            ext = inFileName.substring(extPos).toLowerCase();
+            outFileName = outResName + ext;
+        }
+
+        String outFilePath = "res/" + outFileName;
+        if (!inFilePath.equals(outFilePath)) {
+            resFileMapping.put(inFilePath, outFilePath);
+        }
+
+        String fileName = inFileName;
+        if (inFileName.contains("/")) {
+            String[] ss = inFileName.split("/");
+            fileName = ss[ss.length - 1];
+        }
+        if (fileName.equals(Global.ICON_NAME)) {
+            Global.ICON_NAME = outResName.split("/")[1];
+        }
+
+//        LOGGER.info("inFilePath:" + inFilePath);
+//        LOGGER.info("inFileName:" + inFileName);
+//        LOGGER.info("outResName:" + outResName);
+//        LOGGER.info("typeName:" + typeName);
+        try {
+//            if ("drawable".equals(typeName) || "mipmap".equals(typeName)) {
+            if (typeName.contains("drawable") || typeName.contains("mipmap")) {
+                if (!".xml".equals(ext)) {
+                    String name = outResName.split("/")[1];
+                    if (name.equals(Global.ICON_NAME)) {
+                        LOGGER.info("outFileName:" + outFileName);
+                        // 判断输出图片后缀，没有则加上
+                        if (!outFileName.contains(".")) {
+                            outFileName += ".png";
+                        }
+                        decode(inDir, inFilePath, outDir, outFileName, "raw");
+                    }
+                }
+            } else if ("string".equals(typeName)) {
+                decode(inDir, inFilePath, outDir, outFileName, "xml");
+            }
+        } catch (RawXmlEncounteredException ex) {
+            // If we got an error to decode XML, lets assume the file is in raw format.
+            // This is a large assumption, that might increase runtime, but will save us for situations where
+            // XSD files are AXML`d on aapt1, but left in plaintext in aapt2.
+//            LOGGER.info("RawXmlEncounteredException");
+            decode(inDir, inFilePath, outDir, outFileName, "raw");
+        } catch (AndrolibException ex) {
+//            LOGGER.log(Level.SEVERE, String.format(
+//                "Could not decode file, replacing by FALSE value: %s",
+//                inFileName), ex);
+            res.replace(new ResBoolValue(false, 0, null));
+        }
+    }
+
+    public void decode(Directory inDir, String inFileName, Directory outDir, String outFileName, String decoder) throws AndrolibException {
+        try (InputStream in = inDir.getFileInput(inFileName); OutputStream out = outDir.getFileOutput(outFileName)) {
             mDecoders.decode(in, out, decoder);
         } catch (DirectoryException | IOException ex) {
             throw new AndrolibException(ex);
         }
     }
 
-    public void copyRaw(Directory inDir, Directory outDir, String inFilename,
-                        String outFilename) throws AndrolibException {
+    public void copyRaw(Directory inDir, Directory outDir, String inFilename, String outFilename) throws AndrolibException {
         try {
             DirUtil.copyToDir(inDir, outDir, inFilename, outFilename);
         } catch (DirectoryException ex) {
@@ -155,13 +216,17 @@ public class ResFileDecoder {
         }
     }
 
-    public void decodeManifest(Directory inDir, String inFileName,
-                               Directory outDir, String outFileName) throws AndrolibException {
-        try (
-                InputStream in = inDir.getFileInput(inFileName);
-                OutputStream out = outDir.getFileOutput(outFileName)
-        ) {
+    public void decodeManifest(Directory inDir, String inFileName, Directory outDir, String outFileName) throws AndrolibException {
+        try (InputStream in = inDir.getFileInput(inFileName); OutputStream out = outDir.getFileOutput(outFileName)) {
             ((XmlPullStreamDecoder) mDecoders.getDecoder("xml")).decodeManifest(in, out);
+        } catch (DirectoryException | IOException ex) {
+            throw new AndrolibException(ex);
+        }
+    }
+
+    public void decodeManifestApplication(Directory inDir, String inFileName, Directory outDir, String outFileName, AppInfo appInfo) throws AndrolibException {
+        try (InputStream in = inDir.getFileInput(inFileName); OutputStream out = outDir.getFileOutput(outFileName);) {
+            ((XmlPullStreamDecoder) mDecoders.getDecoder("xml")).decodeManifestApplication(in, out, appInfo);
         } catch (DirectoryException | IOException ex) {
             throw new AndrolibException(ex);
         }
@@ -169,13 +234,11 @@ public class ResFileDecoder {
 
     private final static Logger LOGGER = Logger.getLogger(ResFileDecoder.class.getName());
 
-    private final static String[] RAW_IMAGE_EXTENSIONS = new String[] {
-        "m4a", // apple
+    private final static String[] RAW_IMAGE_EXTENSIONS = new String[]{"m4a", // apple
         "qmg", // samsung
     };
 
-    private final static String[] RAW_9PATCH_IMAGE_EXTENSIONS = new String[] {
-        "qmg", // samsung
+    private final static String[] RAW_9PATCH_IMAGE_EXTENSIONS = new String[]{"qmg", // samsung
         "spi", // samsung
     };
 }

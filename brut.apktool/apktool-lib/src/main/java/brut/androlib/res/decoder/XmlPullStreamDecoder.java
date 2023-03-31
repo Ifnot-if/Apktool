@@ -19,8 +19,12 @@ package brut.androlib.res.decoder;
 import brut.androlib.AndrolibException;
 import brut.androlib.err.AXmlDecodingException;
 import brut.androlib.err.RawXmlEncounteredException;
+import brut.androlib.res.AndrolibResources;
 import brut.androlib.res.data.ResTable;
 import brut.androlib.res.util.ExtXmlSerializer;
+import brut.androlib.tinypace.AppInfo;
+import brut.androlib.tinypace.Global;
+
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
 import org.xmlpull.v1.wrapper.XmlPullParserWrapper;
@@ -31,8 +35,11 @@ import org.xmlpull.v1.wrapper.classic.StaticXmlSerializerWrapper;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.logging.Logger;
 
 public class XmlPullStreamDecoder implements ResStreamDecoder {
+    private final static Logger LOGGER = Logger.getLogger(XmlPullStreamDecoder.class.getName());
+
     public XmlPullStreamDecoder(XmlPullParser parser,
                                 ExtXmlSerializer serializer) {
         this.mParser = parser;
@@ -41,7 +48,7 @@ public class XmlPullStreamDecoder implements ResStreamDecoder {
 
     @Override
     public void decode(InputStream in, OutputStream out)
-            throws AndrolibException {
+        throws AndrolibException {
         try {
             XmlPullWrapperFactory factory = XmlPullWrapperFactory.newInstance();
             XmlPullParserWrapper par = factory.newPullParserWrapper(mParser);
@@ -53,27 +60,29 @@ public class XmlPullStreamDecoder implements ResStreamDecoder {
 
                 @Override
                 public void event(XmlPullParser pp)
-                        throws XmlPullParserException, IOException {
+                    throws XmlPullParserException, IOException {
                     int type = pp.getEventType();
 
                     if (type == XmlPullParser.START_TAG) {
                         if ("manifest".equalsIgnoreCase(pp.getName())) {
                             try {
                                 hidePackageInfo = parseManifest(pp);
-                            } catch (AndrolibException ignored) {}
+                            } catch (AndrolibException ignored) {
+                            }
                         } else if ("uses-sdk".equalsIgnoreCase(pp.getName())) {
                             try {
                                 hideSdkInfo = parseAttr(pp);
                                 if (hideSdkInfo) {
                                     return;
                                 }
-                            } catch (AndrolibException ignored) {}
+                            } catch (AndrolibException ignored) {
+                            }
                         }
                     } else if (hideSdkInfo && type == XmlPullParser.END_TAG
-                            && "uses-sdk".equalsIgnoreCase(pp.getName())) {
+                        && "uses-sdk".equalsIgnoreCase(pp.getName())) {
                         return;
                     } else if (hidePackageInfo && type == XmlPullParser.END_TAG
-                            && "manifest".equalsIgnoreCase(pp.getName())) {
+                        && "manifest".equalsIgnoreCase(pp.getName())) {
                         super.event(pp);
                         return;
                     }
@@ -81,7 +90,7 @@ public class XmlPullStreamDecoder implements ResStreamDecoder {
                 }
 
                 private boolean parseManifest(XmlPullParser pp)
-                        throws AndrolibException {
+                    throws AndrolibException {
                     String attr_name;
 
                     // read <manifest> for package:
@@ -100,7 +109,7 @@ public class XmlPullStreamDecoder implements ResStreamDecoder {
                 }
 
                 private boolean parseAttr(XmlPullParser pp)
-                        throws AndrolibException {
+                    throws AndrolibException {
                     for (int i = 0; i < pp.getAttributeCount(); i++) {
                         final String a_ns = "http://schemas.android.com/apk/res/android";
                         String ns = pp.getAttributeNamespace(i);
@@ -110,9 +119,9 @@ public class XmlPullStreamDecoder implements ResStreamDecoder {
                             String value = pp.getAttributeValue(i);
                             if (name != null && value != null) {
                                 if (name.equalsIgnoreCase("minSdkVersion")
-                                        || name.equalsIgnoreCase("targetSdkVersion")
-                                        || name.equalsIgnoreCase("maxSdkVersion")
-                                        || name.equalsIgnoreCase("compileSdkVersion")) {
+                                    || name.equalsIgnoreCase("targetSdkVersion")
+                                    || name.equalsIgnoreCase("maxSdkVersion")
+                                    || name.equalsIgnoreCase("compileSdkVersion")) {
                                     resTable.addSdkInfo(name, value);
                                 } else {
                                     resTable.clearSdkInfo();
@@ -128,7 +137,7 @@ public class XmlPullStreamDecoder implements ResStreamDecoder {
                         }
                     }
 
-                    return ! resTable.getAnalysisMode();
+                    return !resTable.getAnalysisMode();
                 }
             };
 
@@ -146,9 +155,135 @@ public class XmlPullStreamDecoder implements ResStreamDecoder {
         }
     }
 
+    @Override
+    public void decodeApplication(InputStream in, OutputStream out, AppInfo appInfo)
+        throws AndrolibException {
+        try {
+            XmlPullWrapperFactory factory = XmlPullWrapperFactory.newInstance();
+            XmlPullParserWrapper par = factory.newPullParserWrapper(mParser);
+            XmlSerializerWrapper ser = new StaticXmlSerializerWrapper(mSerial, factory) {
+                boolean isActivityFlag, isActionMain, isCategoryLauncher;
+
+                @Override
+                public void event(XmlPullParser pp)
+                    throws XmlPullParserException, IOException {
+                    int type = pp.getEventType();
+
+                    if (type == XmlPullParser.START_TAG) {
+
+                        switch (pp.getName()) {
+                            case "manifest":
+                                for (int i = 0; i < pp.getAttributeCount(); i++) {
+
+                                    switch (pp.getAttributeName(i)) {
+                                        case "versionCode":
+                                            appInfo.setVersionCode(pp.getAttributeValue(i));
+                                            break;
+                                        case "versionName":
+                                            appInfo.setVersionName(pp.getAttributeValue(i));
+                                            break;
+                                        case "package":
+                                            appInfo.setPackageName(pp.getAttributeValue(i));
+                                            break;
+                                        default:
+                                            break;
+                                    }
+                                }
+                                break;
+                            case "uses-sdk":
+                                for (int i = 0; i < pp.getAttributeCount(); i++) {
+                                    if ("minSdkVersion".equals(pp.getAttributeName(i))) {
+                                        appInfo.setSdkVersion(pp.getAttributeValue(i));
+                                        break;
+                                    }
+                                }
+                                break;
+                            case "application":
+                                for (int i = 0; i < pp.getAttributeCount(); i++) {
+                                    if ("icon".equals(pp.getAttributeName(i))) {
+                                        String[] ss = pp.getAttributeValue(i).split("/");
+                                        Global.ICON_NAME = ss[ss.length - 1];
+//                                        LOGGER.info("ICON_NAME0:" + Global.ICON_NAME);
+                                        break;
+                                    } else if ("label".equals(pp.getAttributeName(i))) {
+                                        Global.APP_NAME = pp.getAttributeValue(i);
+                                    }
+                                }
+                                break;
+                            case "activity":
+                                if (isActionMain && isCategoryLauncher) {
+                                    break;
+                                } else {
+                                    isActionMain = false;
+                                    isCategoryLauncher = false;
+                                }
+
+                                for (int i = 0; i < pp.getAttributeCount(); i++) {
+                                    if ("name".equals(pp.getAttributeName(i))) {
+                                        appInfo.setLaunchActivity(pp.getAttributeValue(i));
+                                        break;
+                                    }
+                                }
+                                isActivityFlag = true;
+                                break;
+                            case "action":
+                                if (!isActionMain && isActivityFlag) {
+                                    for (int i = 0; i < pp.getAttributeCount(); i++) {
+                                        if ("name".equals(pp.getAttributeName(i))) {
+                                            String name = pp.getAttributeValue(i);
+                                            if ("android.intent.action.MAIN".equals(name)) {
+                                                isActionMain = true;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+                                break;
+                            case "category":
+                                if (!isCategoryLauncher && isActivityFlag) {
+                                    for (int i = 0; i < pp.getAttributeCount(); i++) {
+                                        if ("name".equals(pp.getAttributeName(i))) {
+                                            String name = pp.getAttributeValue(i);
+                                            if ("android.intent.category.LAUNCHER".equals(name)) {
+                                                isCategoryLauncher = true;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+                                break;
+                            default:
+                                break;
+                        }
+
+                    }
+                    super.event(pp);
+                }
+
+            };
+
+            par.setInput(in, null);
+            ser.setOutput(out, null);
+
+            while (par.nextToken() != XmlPullParser.END_DOCUMENT) {
+                ser.event(par);
+            }
+            ser.flush();
+        } catch (XmlPullParserException ex) {
+            throw new AXmlDecodingException("Could not decode XML", ex);
+        } catch (IOException ex) {
+            throw new RawXmlEncounteredException("Could not decode XML", ex);
+        }
+    }
+
     public void decodeManifest(InputStream in, OutputStream out)
-            throws AndrolibException {
-            decode(in, out);
+        throws AndrolibException {
+        decode(in, out);
+    }
+
+    public void decodeManifestApplication(InputStream in, OutputStream out, AppInfo appInfo)
+        throws AndrolibException {
+        decodeApplication(in, out, appInfo);
     }
 
     private final XmlPullParser mParser;
